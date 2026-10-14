@@ -1,0 +1,12 @@
+{
+  "name": "harbor-homes-crm",
+  "private": true,
+  "description": "Harbor Homes Real Estate CRM — React frontend",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "install:web": "npm --prefix frontend install",
+    "build": "npm --prefix frontend run build",
+    "serve": "npm --prefix frontend run build && npm --prefix frontend run preview",
+    "start": "npm run dev"
+  }
+}

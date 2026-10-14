@@ -1,0 +1,1 @@
+{"success":true,"data":{"by_outcome":[{"outcome":"no_answer","cnt":1}],"by_employee":[{"id":4,"full_name":"Anita Shah","calls_logged":1}],"connected_calls":null,"note":"connected_calls and actual duration require a telephony provider integration."}}
