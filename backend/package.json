@@ -1,0 +1,22 @@
+{
+  "name": "harbor-homes-crm-backend",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Harbor Homes CRM backend — Express + MongoDB",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:test": "node scripts/test-connection.js",
+    "user:create-admin": "node scripts/create-admin.js"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.8",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "mongoose": "^9.11.2"
+  }
+}

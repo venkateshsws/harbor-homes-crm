@@ -1,6 +1,7 @@
 # Dependencies
 frontend/node_modules/
 frontend/dist/
+backend/node_modules/
 
 # Local env
 .env

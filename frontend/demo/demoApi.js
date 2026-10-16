@@ -1,5 +1,7 @@
 // Frontend-only data for the CRM screens. Records are saved JSON held in
-// memory for this Vite process. There is no PHP API and no database.
+// memory for this Vite process. When a backend URL is passed in, sign-in is
+// handled by the Express backend and this demo trusts its session instead of
+// its own demo login.
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -79,7 +81,32 @@ function readCookie(req, name) {
   return match ? decodeURIComponent(match.slice(name.length + 1)) : ''
 }
 
-function currentUser(req) {
+const BACKEND_SESSION_COOKIE = 'hh_session'
+const backendUsers = new Map()
+
+async function backendUser(backendUrl, token) {
+  const cached = backendUsers.get(token)
+  if (cached && cached.expires > Date.now()) return cached.user
+  let user = null
+  try {
+    const res = await fetch(new URL('/api/auth/me', backendUrl), {
+      headers: { Accept: 'application/json', Cookie: `${BACKEND_SESSION_COOKIE}=${encodeURIComponent(token)}` },
+    })
+    const body = await res.json().catch(() => ({}))
+    if (res.ok && body.success) user = body.data.user
+  } catch {
+    user = null
+  }
+  if (backendUsers.size > 500) backendUsers.clear()
+  backendUsers.set(token, { user, expires: Date.now() + 10_000 })
+  return user
+}
+
+async function currentUser(req, backendUrl) {
+  if (backendUrl) {
+    const token = readCookie(req, BACKEND_SESSION_COOKIE)
+    return token ? backendUser(backendUrl, token) : null
+  }
   const token = readCookie(req, 'hh_local_demo')
   return token ? sessions.get(token) || null : null
 }
@@ -111,7 +138,7 @@ function readBody(req) {
   })
 }
 
-export async function handleDemoRequest(req, res) {
+export async function handleDemoRequest(req, res, { backendUrl } = {}) {
   const url = new URL(req.url || '/', 'http://127.0.0.1')
   const pathname = url.pathname.replace(/\/$/, '') || '/'
   const method = (req.method || 'GET').toUpperCase()
@@ -149,7 +176,7 @@ export async function handleDemoRequest(req, res) {
     return
   }
 
-  const user = currentUser(req)
+  const user = await currentUser(req, backendUrl)
   if (!user) {
     send(res, 401, { success: false, error: 'Sign in required.' })
     return
@@ -264,12 +291,12 @@ export async function handleDemoRequest(req, res) {
   send(res, 404, { success: false, error: `No local demo data for ${pathname}` })
 }
 
-export function localDemoMiddleware() {
+export function localDemoMiddleware(options = {}) {
   return async function demoMiddleware(req, res, next) {
     const pathname = (req.url || '').split('?')[0]
     if (!pathname.startsWith('/api')) return next()
     try {
-      await handleDemoRequest(req, res)
+      await handleDemoRequest(req, res, options)
     } catch (error) {
       next(error)
     }
