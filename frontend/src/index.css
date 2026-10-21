@@ -1,9 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap');
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:wght@600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Fraunces", Georgia, serif;
+
   --color-ink: #12202b;
   --color-ink-soft: #3a4a57;
   --color-surface: #f4f7f5;
@@ -18,9 +20,13 @@
   --color-ok: #16794c;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-html, body, #root {
+html,
+body,
+#root {
   min-height: 100%;
 }
 
@@ -34,7 +40,9 @@ body {
     var(--color-surface);
 }
 
-.font-display { font-family: var(--font-display); }
+.font-display {
+  font-family: var(--font-display);
+}
 
 .card-panel {
   background: color-mix(in oklab, white 88%, #e8f2ef);
@@ -43,7 +51,9 @@ body {
   box-shadow: 0 10px 30px rgba(18, 32, 43, 0.04);
 }
 
-.input, .select, .textarea {
+.input,
+.select,
+.textarea {
   width: 100%;
   border: 1px solid var(--color-line);
   background: white;
@@ -53,7 +63,9 @@ body {
   color: var(--color-ink);
 }
 
-.input:focus, .select:focus, .textarea:focus {
+.input:focus,
+.select:focus,
+.textarea:focus {
   outline: 2px solid color-mix(in oklab, var(--color-brand) 35%, white);
   border-color: var(--color-brand);
 }
@@ -68,17 +80,27 @@ body {
   font-weight: 600;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: transform .15s ease, background .15s ease, opacity .15s ease;
+  transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
 }
 
-.btn:hover { transform: translateY(-1px); }
-.btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
 
 .btn-primary {
   background: var(--color-brand);
   color: white;
 }
-.btn-primary:hover { background: var(--color-brand-deep); }
+
+.btn-primary:hover {
+  background: var(--color-brand-deep);
+}
 
 .btn-secondary {
   background: white;
@@ -101,33 +123,264 @@ body {
   font-weight: 600;
 }
 
-.table-wrap { overflow: auto; }
+.table-wrap {
+  overflow: auto;
+}
+
 table.data {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.92rem;
 }
-table.data th, table.data td {
+
+table.data th,
+table.data td {
   text-align: left;
   padding: 0.75rem 0.65rem;
   border-bottom: 1px solid var(--color-line);
   white-space: nowrap;
 }
+
 table.data th {
   color: var(--color-ink-soft);
   font-size: 0.78rem;
   text-transform: uppercase;
-  letter-spacing: .04em;
+  letter-spacing: 0.04em;
 }
 
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-.animate-fade-up { animation: fade-up .35s ease both; }
+
+.animate-fade-up {
+  animation: fade-up 0.35s ease both;
+}
 
 @keyframes pulse-soft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .55; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.55;
+  }
 }
-.loading-pulse { animation: pulse-soft 1.2s ease infinite; }
+
+.loading-pulse {
+  animation: pulse-soft 1.2s ease infinite;
+}
+
+/* Yahoo CRM — Company Admin theme only */
+.company-admin-theme {
+  --color-ink: #172554;
+  --color-ink-soft: #64748b;
+  --color-surface: #f1f5f9;
+  --color-card: #ffffff;
+  --color-line: #dbeafe;
+  --color-brand: #2563eb;
+  --color-brand-deep: #1d4ed8;
+  --color-brand-soft: #eff6ff;
+  --color-accent: #3b82f6;
+
+  color: #172554;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 100%);
+  border: 1px solid #e2ecff;
+  border-radius: 20px;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  min-height: 100%;
+}
+
+.company-admin-theme .card-panel {
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.07);
+}
+
+.company-admin-theme h1,
+.company-admin-theme h2,
+.company-admin-theme h3 {
+  color: #172554;
+}
+
+.company-admin-theme .card-panel h2 {
+  color: #172554;
+}
+
+.company-admin-theme table.data th {
+  background: #f5f8ff;
+  color: #475569;
+}
+
+.company-admin-theme table.data td {
+  color: #334155;
+  border-bottom-color: #e2e8f0;
+}
+
+.company-admin-theme table.data tbody tr:hover {
+  background: #f8fbff;
+}
+
+
+
+/* Force a consistent background for Company Admin only */
+body:has(.company-admin-layout) {
+  background: #f1f5f9 !important;
+  background-image: none !important;
+}
+
+.company-admin-layout {
+  background: #f1f5f9 !important;
+  min-height: 100vh;
+}
+
+.company-admin-layout > div {
+  background-color: #f1f5f9;
+}
+
+.company-admin-layout header {
+  background-color: #ffffff !important;
+  border-color: #dbeafe !important;
+}
+
+.company-admin-layout main {
+  background: #f1f5f9 !important;
+  min-height: calc(100vh - 4rem);
+}
+
+.company-admin-layout .company-admin-theme {
+  background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 100%);
+}
+
+
+
+
+
+
+/* Yahoo CRM: Company Admin white and blue page */
+.company-admin-layout {
+  background: #f1f5f9 !important;
+}
+
+.company-admin-layout > div,
+.company-admin-layout main {
+  background: #f1f5f9 !important;
+  background-image: none !important;
+}
+
+.company-admin-layout .card-panel {
+  background: #ffffff !important;
+  border: 1px solid #dbeafe !important;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.06) !important;
+}
+
+.company-admin-layout h1,
+.company-admin-layout h2,
+.company-admin-layout h3 {
+  color: #172554;
+}
+
+.company-admin-layout .btn-primary {
+  background: #2563eb !important;
+  color: #ffffff !important;
+}
+
+.company-admin-layout .btn-primary:hover {
+  background: #1d4ed8 !important;
+}
+
+
+
+
+
+
+/* Employee right-side Modern Blue theme only */
+.employee-layout,
+.employee-layout .employee-main,
+.employee-layout .employee-content {
+  background: #f1f5f9 !important;
+  background-image: none !important;
+  color: #1e293b;
+}
+
+/* Employee page cards */
+.employee-layout .card-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.05);
+}
+
+/* Primary green buttons become blue */
+.employee-layout .btn-primary {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+.employee-layout .btn-primary:hover {
+  background: #1d4ed8 !important;
+}
+
+/* Secondary buttons */
+.employee-layout .btn-secondary {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.employee-layout .btn-secondary:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+/* Common green Tailwind buttons inside Employee pages */
+.employee-layout main button.bg-green-600,
+.employee-layout main button.bg-green-700,
+.employee-layout main button.bg-emerald-600,
+.employee-layout main button.bg-emerald-700 {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+.employee-layout main button.bg-green-600:hover,
+.employee-layout main button.bg-green-700:hover,
+.employee-layout main button.bg-emerald-600:hover,
+.employee-layout main button.bg-emerald-700:hover {
+  background-color: #1d4ed8 !important;
+}
+
+
+
+
+.employee-layout,
+.employee-layout .employee-main,
+.employee-layout .employee-content {
+  background: #f1f5f9 !important;
+  background-image: none !important;
+}
+
+.employee-layout .employee-sidebar {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+
+
+
+
+/* Hide the Menu button on laptop and desktop screens */
+@media (min-width: 1024px) {
+  .btn.btn-secondary.lg\:hidden {
+    display: none !important;
+  }
+}

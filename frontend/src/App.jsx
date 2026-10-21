@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
+import SuperAdminDashboard from './pages/SuperAdminDashboard'
 import Dashboard from './pages/Dashboard'
 import Leads from './pages/Leads'
 import LeadDetail from './pages/LeadDetail'
@@ -45,6 +46,14 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route
+        path="/super-admin"
+        element={
+          <RequireAuth roles={['super_admin']}>
+            <SuperAdminDashboard />
+          </RequireAuth>
+        }
+/>
       <Route
         path="/"
         element={

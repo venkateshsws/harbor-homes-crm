@@ -28,7 +28,7 @@ function RoleDashboard() {
   if (!data) return <EmptyState title="No dashboard data" />
 
   return (
-    <div>
+    <div className={data.role === 'admin' ? 'company-admin-theme' : undefined}>
       <PageHeader
         title={`${user?.full_name?.split(' ')[0] || 'Team'}, here's today`}
         subtitle="Demo CRM metrics for your role. Saved with the frontend, not in a database."
@@ -49,11 +49,11 @@ function RoleDashboard() {
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.leads_by_status}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#d7e0da" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#dbeafe" />
                     <XAxis dataKey="name" hide />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
-                    <Bar dataKey="cnt" fill="#0f5c56" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="cnt" fill="#2563eb" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
