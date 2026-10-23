@@ -12,31 +12,12 @@ import { api, setCsrfToken } from '../api/client'
 
 const AuthContext = createContext(null)
 
-// Keep true while developing the frontend without a backend.
 const DEMO_MODE = true
+const SESSION_KEY = 'yahoo-crm-demo-user'
+const DEMO_PASSWORD = 'Password123!'
 
-const demoUsers = {
-  'admin@harborhomes.crm': {
-    id: 1,
-    employee_code: 'ADM001',
-    email: 'admin@harborhomes.crm',
-    full_name: 'Asha Verma',
-    role: 'admin',
-    role_name: 'Admin',
-    is_active: true,
-  },
-
-  'employee@yahoo-crm.local': {
-    id: 2,
-    employee_code: 'EMP001',
-    email: 'employee@yahoo-crm.local',
-    full_name: 'Demo Employee',
-    role: 'employee',
-    role_name: 'Employee',
-    is_active: true,
-  },
-
-  'superadmin@yahoo-crm.local': {
+const demoUsers = [
+  {
     id: 0,
     employee_code: 'SUPER001',
     email: 'superadmin@yahoo-crm.local',
@@ -45,50 +26,90 @@ const demoUsers = {
     role_name: 'Super Admin',
     is_active: true,
   },
+  {
+    id: 1,
+    employee_code: 'ADMIN001',
+    email: 'admin@yahoo-crm.local',
+    full_name: 'Admin',
+    role: 'admin',
+    role_name: 'Admin',
+    is_active: true,
+  },
+  {
+    id: 2,
+    employee_code: 'LEAD001',
+    email: 'teamlead@yahoo-crm.local',
+    full_name: 'Team Lead',
+    role: 'team_lead',
+    role_name: 'Team Lead',
+    is_active: true,
+  },
+  {
+    id: 3,
+    employee_code: 'EMP001',
+    email: 'employee@yahoo-crm.local',
+    full_name: 'Employee',
+    role: 'employee',
+    role_name: 'Employee',
+    is_active: true,
+  },
+]
+
+function getSavedUser() {
+  try {
+    const saved = sessionStorage.getItem(SESSION_KEY)
+    return saved ? JSON.parse(saved) : null
+  } catch {
+    return null
+  }
 }
 
-const demoPasswords = {
-  'admin@harborhomes.crm': 'Password123!',
-  'employee@yahoo-crm.local': 'Employee123!',
-  'superadmin@yahoo-crm.local': 'SuperAdmin123!',
+function saveUser(user) {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(user))
+  setCsrfToken('local-demo')
+}
+
+function isDemoUser(user) {
+  return demoUsers.some(
+    (demoUser) =>
+      demoUser.email === user?.email &&
+      demoUser.role === user?.role,
+  )
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    if (!DEMO_MODE) return null
-
-    try {
-      const savedUser = sessionStorage.getItem(
-        'yahoo-crm-demo-user',
-      )
-      if (!savedUser) return null
-
-      const parsedUser = JSON.parse(savedUser)
-
-      // Do not restore unknown or outdated demo roles.
-      return parsedUser?.email &&
-        demoUsers[parsedUser.email.toLowerCase()]?.role === parsedUser.role
-        ? demoUsers[parsedUser.email.toLowerCase()]
-        : null
-    } catch {
-      return null
-    }
-  })
-
+  const [user, setUser] = useState(getSavedUser)
   const [loading, setLoading] = useState(!DEMO_MODE)
 
   const refresh = useCallback(async () => {
     if (DEMO_MODE) {
-      setLoading(false)
-      return
+      const savedUser = getSavedUser()
+
+      if (isDemoUser(savedUser)) {
+        setUser(savedUser)
+        setCsrfToken('local-demo')
+        setLoading(false)
+        return
+      }
     }
 
     try {
       const res = await api('/api/auth/me')
-      setUser(res.data.user)
-      setCsrfToken(res.data.csrf_token)
+      const loggedInUser = res.data.user
+
+      setUser(loggedInUser)
+
+      if (DEMO_MODE) {
+        sessionStorage.setItem(
+          SESSION_KEY,
+          JSON.stringify(loggedInUser),
+        )
+      }
+
+      setCsrfToken(res.data.csrf_token || 'local-demo')
     } catch {
       setUser(null)
+      sessionStorage.removeItem(SESSION_KEY)
       setCsrfToken(null)
     } finally {
       setLoading(false)
@@ -100,53 +121,63 @@ export function AuthProvider({ children }) {
   }, [refresh])
 
   const login = async (identifier, password) => {
-    if (DEMO_MODE) {
-      const email = identifier?.trim().toLowerCase()
-
-      if (!email || !password) {
-        throw new Error('Enter your email and password.')
-      }
-
-      const demoUser = demoUsers[email]
-
-      if (!demoUser) {
-        throw new Error(
-          'Demo account not found. Use one of the demo emails below.',
-        )
-      }
-
-      if (demoPasswords[email] !== password) {
-        throw new Error('Incorrect demo password.')
-      }
-
-      sessionStorage.setItem(
-        'yahoo-crm-demo-user',
-        JSON.stringify(demoUser),
-      )
-
-      setCsrfToken('local-demo')
-      setUser(demoUser)
-
-      return demoUser
+    if (!identifier?.trim() || !password) {
+      throw new Error('Enter your email or employee ID and password.')
     }
 
+    const normalizedIdentifier = identifier.trim().toLowerCase()
+
+    // Local demo login for all four roles.
+    if (DEMO_MODE) {
+      const demoUser = demoUsers.find(
+        (item) =>
+          item.email === normalizedIdentifier ||
+          item.employee_code.toLowerCase() === normalizedIdentifier,
+      )
+
+      if (demoUser) {
+        if (password !== DEMO_PASSWORD) {
+          throw new Error('Incorrect demo password.')
+        }
+
+        setUser(demoUser)
+        saveUser(demoUser)
+        return demoUser
+      }
+    }
+
+    // Real backend login for accounts not in the demo list.
     const res = await api('/api/auth/login', {
       method: 'POST',
-      body: { identifier, password },
+      body: {
+        identifier: identifier.trim(),
+        password,
+      },
     })
 
-    setUser(res.data.user)
-    setCsrfToken(res.data.csrf_token)
+    const loggedInUser = res.data.user
 
-    return res.data.user
+    if (!loggedInUser) {
+      throw new Error('The server did not return a user account.')
+    }
+
+    setUser(loggedInUser)
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(loggedInUser))
+    setCsrfToken(res.data.csrf_token || 'local-demo')
+
+    return loggedInUser
   }
 
   const logout = async () => {
+    const currentUser = user
+
     setUser(null)
-    sessionStorage.removeItem('yahoo-crm-demo-user')
+    sessionStorage.removeItem(SESSION_KEY)
     setCsrfToken(null)
 
-    if (DEMO_MODE) return
+    if (DEMO_MODE && isDemoUser(currentUser)) {
+      return
+    }
 
     try {
       await api('/api/auth/logout', {
@@ -154,7 +185,7 @@ export function AuthProvider({ children }) {
         body: {},
       })
     } catch {
-      // Clear client state even if the server is unavailable.
+      // Clear local session even if API logout fails.
     }
   }
 
