@@ -20,7 +20,7 @@ function Field({ icon: Icon, label, children }) {
 }
 
 export default function Profile() {
-  const { user, refresh } = useAuth()
+  const { user, refresh, logout } = useAuth()
   const { data, source } = useEmployeeWorkspace()
   const [phone, setPhone] = useState(user?.phone || '')
   const [fullName, setFullName] = useState(user?.full_name || '')
@@ -40,18 +40,28 @@ export default function Profile() {
     } catch (err) { setError(err.message) }
   }
 
-  const changePassword = async (e) => {
+ const changePassword = async (e) => {
     e.preventDefault()
     setError('')
+    setMessage('')
+
     try {
       await api('/api/auth/change-password', {
         method: 'POST',
-        body: { current_password: currentPassword, new_password: newPassword },
+        body: {
+          current_password: currentPassword,
+          new_password: newPassword,
+        },
       })
-      setMessage('Password updated')
+
       setCurrentPassword('')
       setNewPassword('')
-    } catch (err) { setError(err.message) }
+
+      await logout()
+      window.location.assign('/login')
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   return (
