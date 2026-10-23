@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import rateLimit from 'express-rate-limit'
 import { env } from '../config/env.js'
-import { verifyPassword } from '../lib/password.js'
+import { hashPassword, passwordProblem, verifyPassword } from '../lib/password.js'
 import { hashToken, randomToken, requireAuth, SESSION_COOKIE } from '../middleware/auth.js'
 import { Session } from '../models/Session.js'
 import { User } from '../models/User.js'
@@ -65,6 +65,37 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
 
 authRouter.get('/me', requireAuth, (req, res) => {
   res.json({ success: true, data: { user: req.user.toSessionUser(), csrf_token: req.authSession.csrf_token } })
+})
+
+authRouter.post('/change-password', requireAuth, async (req, res) => {
+  const { current_password, new_password } = req.body ?? {}
+  if (typeof current_password !== 'string' || typeof new_password !== 'string' || !current_password || !new_password) {
+    return res.status(400).json({ success: false, error: 'Enter your current password and a new password.' })
+  }
+  const problem = passwordProblem(new_password)
+  if (problem) return res.status(400).json({ success: false, error: problem.replace(/^Password/, 'New password') })
+    if (new_password === current_password) {
+      return res.status(400).json({
+        success: false,
+        error: 'New password must be different from the current password.',
+      })
+    }
+  const user = await User.findById(req.user._id).select('+password_hash')
+  if (!user || !user.is_active) {
+    return res.status(403).json({ success: false, error: 'This account has been deactivated. Contact your administrator.' })
+  }
+  if (!(await verifyPassword(current_password, user.password_hash))) {
+    return res.status(400).json({ success: false, error: 'Current password is incorrect.' })
+  }
+
+  user.password_hash = await hashPassword(new_password)
+  await user.save()
+
+  // Invalidate all sessions after the password changes.
+  await Session.deleteMany({ user: user._id })
+
+  res.clearCookie(SESSION_COOKIE, cookieOptions())
+  return res.json({ success: true, data: {} })
 })
 
 authRouter.post('/logout', async (req, res) => {
