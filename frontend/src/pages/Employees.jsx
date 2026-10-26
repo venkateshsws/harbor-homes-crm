@@ -1,783 +1,336 @@
 
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import {
-  BadgeCheck,
-  CalendarClock,
-  CalendarDays,
-  ClipboardList,
-  Flame,
-  Hourglass,
-  MapPin,
-  Phone,
-  PhoneCall,
+  Users,
   Search,
-  StickyNote,
-  UserPlus,
+  RefreshCw,
+  Mail,
+  Phone,
+  UserRound,
+  UserCheck,
+  ShieldCheck,
+  Building2,
+  Sparkles,
+  BriefcaseBusiness,
 } from 'lucide-react'
-import clsx from 'clsx'
+import { api } from '../api/client'
+import { LoadingBlock, ErrorBanner } from '../components/ui'
 
-import { useAuth } from '../auth/AuthContext'
-import { useEmployeeWorkspace } from '../hooks/useEmployeeWorkspace'
-import { employeeService } from '../services/employeeService'
-import {
-  EmptyState,
-  ErrorBanner,
-  LoadingBlock,
-  PriorityBadge,
-  StatusBadge,
-} from '../components/ui'
-import {
-  DataSourceBadge,
-  Notice,
-  OutcomeBadge,
-  Panel,
-  ShiftBar,
-  StatTile,
-  Tabs,
-} from '../components/employee/EmployeeUI'
-import { useLeadActions } from '../components/employee/LeadActions'
-import {
-  PipelineDonut,
-  TrendAreaChart,
-} from '../components/DashboardAnalytics'
-import {
-  fmtDateTime,
-  fmtDuration,
-  fmtRelative,
-  fmtTime,
-  isPast,
-  isToday,
-  parseUtc,
-} from '../lib/format'
+export default function Employees() {
+  const [employees, setEmployees] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
 
-function greeting() {
-  const hour = new Date().getHours()
+  async function loadEmployees() {
+    setLoading(true)
+    setError('')
 
-  if (hour < 12) return 'Good morning'
-  if (hour < 17) return 'Good afternoon'
-  return 'Good evening'
-}
+    try {
+      const response = await api('/api/users')
+      const data = response?.data ?? response
+      const list = Array.isArray(data)
+        ? data
+        : data?.users ?? data?.employees ?? []
 
-const QUEUE_TABS = [
-  {
-    value: 'open',
-    label: 'Open',
-    test: (lead) => !Number(lead.is_terminal),
-  },
-  {
-    value: 'new',
-    label: 'New',
-    test: (lead) => [1, 2, 3].includes(Number(lead.status_id)),
-  },
-  {
-    value: 'due',
-    label: 'Due today',
-    test: (lead) =>
-      !Number(lead.is_terminal) &&
-      lead.next_follow_up_at &&
-      (isToday(lead.next_follow_up_at) ||
-        isPast(lead.next_follow_up_at)),
-  },
-  {
-    value: 'interested',
-    label: 'Interested',
-    test: (lead) => Number(lead.status_id) === 5,
-  },
-  {
-    value: 'converted',
-    label: 'Converted',
-    test: (lead) => Number(lead.status_id) === 11,
-  },
-  {
-    value: 'all',
-    label: 'All',
-    test: () => true,
-  },
-]
+      setEmployees(list)
+    } catch (err) {
+      setError(err?.message || 'Could not load employees.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-export default function EmployeeDashboard() {
-  const { user } = useAuth()
+  useEffect(() => {
+    loadEmployees()
+  }, [])
 
-  const {
-    data,
-    source,
-    loading,
-    error,
-    fetchedAt,
-    reload,
-  } = useEmployeeWorkspace()
+  const filteredEmployees = employees.filter((employee) => {
+    const term = search.trim().toLowerCase()
+    if (!term) return true
 
-  const [notice, setNotice] = useState('')
-  const [actionError, setActionError] = useState('')
-  const [tab, setTab] = useState('open')
-  const [query, setQuery] = useState('')
-
-  const actions = useLeadActions({
-    workspace: data,
-    source,
-    reload,
-    onNotice: setNotice,
-    onError: setActionError,
+    return [
+      employee.full_name,
+      employee.employee_code,
+      employee.email,
+      employee.phone,
+      employee.mobile,
+      employee.role,
+      employee.department,
+      employee.team_name,
+    ].some((value) => String(value || '').toLowerCase().includes(term))
   })
 
-  const queue = useMemo(() => {
-    const selectedTab = QUEUE_TABS.find(
-      (item) => item.value === tab,
-    )
+  const activeCount = employees.filter(
+    (employee) => employee.is_active !== false,
+  ).length
 
-    const search = query.trim().toLowerCase()
+  const teamLeadCount = employees.filter(
+    (employee) => ['hod', 'team_lead'].includes(employee.role),
+  ).length
 
-    return (data?.leads || [])
-      .filter(selectedTab.test)
-      .filter(
-        (lead) =>
-          !search ||
-          (lead.full_name || '').toLowerCase().includes(search) ||
-          (lead.mobile || '').includes(search) ||
-          (lead.lead_code || '').toLowerCase().includes(search),
-      )
-  }, [data, tab, query])
+  const getInitials = (name = '') =>
+    name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'U'
 
-  if (loading && !data) {
-    return <LoadingBlock label="Loading your workspace…" />
-  }
-
-  if (error && !data) {
-    return <ErrorBanner message={error} />
-  }
-
-  if (!data) {
-    return <EmptyState title="Workspace unavailable" />
-  }
-
-  const {
-    stats,
-    profile,
-    session,
-    follow_ups: followUps,
-    site_visits: visits,
-    calls,
-    attendance,
-    performance,
-  } = data
-
-  const todaysTasks = followUps.filter(
-    (task) =>
-      ['pending', 'overdue'].includes(task.status) &&
-      (isToday(task.due_at) || isPast(task.due_at)),
-  )
-
-  const upcomingVisits = visits
-    .filter((visit) => visit.status === 'scheduled')
-    .slice(0, 4)
-
-  const dailyPerformance = performance.daily || []
-  const pipeline = performance.pipeline || []
-
-  const chart = dailyPerformance.map((day) => ({
-    ...day,
-    label: parseUtc(day.date).toLocaleDateString([], {
-      day: '2-digit',
-      month: 'short',
-    }),
-  }))
-
-  const breakAction = (fn, message) =>
-    actions.run(() => fn(source), message)
-
-  const completeTask = (id) =>
-    actions.run(
-      () =>
-        employeeService.updateFollowUp(source, id, {
-          status: 'completed',
-        }),
-      'Follow-up marked complete.',
-    )
+  const avatarColors = [
+    'from-violet-500 to-indigo-600',
+    'from-cyan-500 to-blue-600',
+    'from-emerald-500 to-teal-600',
+    'from-orange-400 to-pink-500',
+    'from-fuchsia-500 to-purple-600',
+  ]
 
   return (
-    <div className="space-y-5">
-      {/* Dashboard heading */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-display text-3xl text-[var(--color-ink)]">
-              {greeting()},{' '}
-              {(profile.full_name || user?.full_name || '').split(' ')[0]}
+    <div className="min-h-screen space-y-6 pb-8">
+      {/* Colourful page header */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-800 p-6 text-white shadow-xl sm:p-8">
+        <div className="absolute -right-12 -top-20 size-64 rounded-full bg-white/10 blur-2xl" />
+        <div className="absolute -bottom-24 right-1/3 size-52 rounded-full bg-cyan-300/10 blur-2xl" />
+
+        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-blue-50">
+              <Sparkles size={14} />
+              YAHOO CRM · PEOPLE MANAGEMENT
+            </div>
+
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+              Employees
             </h1>
 
-            <DataSourceBadge source={source} />
-          </div>
-
-          <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
-            {profile.employee_code} · {profile.department}
-            {profile.manager_name
-              ? ` · Reports to ${profile.manager_name}`
-              : ''}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            className="btn btn-secondary"
-            onClick={() => actions.openFollowUp()}
-          >
-            <CalendarClock size={16} />
-            Schedule follow-up
-          </button>
-
-          <button
-            className="btn btn-primary"
-            onClick={() => actions.openCall()}
-          >
-            <PhoneCall size={16} />
-            Log a call
-          </button>
-        </div>
-      </div>
-
-      <Notice
-        notice={notice}
-        onClose={() => setNotice('')}
-      />
-
-      <ErrorBanner message={actionError} />
-
-      {/* Attendance and break controls */}
-      <ShiftBar
-        session={session}
-        fetchedAt={fetchedAt}
-        busy={actions.busy}
-        onStartBreak={() =>
-          breakAction(
-            employeeService.startBreak,
-            'Break started. Enjoy your break!',
-          )
-        }
-        onEndBreak={() =>
-          breakAction(
-            employeeService.endBreak,
-            'Welcome back — break ended.',
-          )
-        }
-      />
-
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7">
-        <StatTile
-          icon={ClipboardList}
-          label="Assigned leads"
-          value={stats.assigned_leads}
-          hint={`${stats.open_leads} open`}
-          to="/leads"
-        />
-
-        <StatTile
-          icon={UserPlus}
-          tone="sky"
-          label="New leads"
-          value={stats.new_leads}
-          hint="Not yet contacted"
-        />
-
-        <StatTile
-          icon={PhoneCall}
-          tone="violet"
-          label="Calls today"
-          value={stats.calls_today}
-          hint={`${stats.connected_today} connected`}
-          to="/calls"
-        />
-
-        <StatTile
-          icon={CalendarClock}
-          tone="amber"
-          label="Follow-ups"
-          value={stats.follow_ups_today}
-          hint={
-            stats.overdue_follow_ups
-              ? `${stats.overdue_follow_ups} overdue`
-              : 'Due today'
-          }
-          to="/follow-ups"
-        />
-
-        <StatTile
-          icon={Flame}
-          tone="orange"
-          label="Interested"
-          value={stats.interested}
-          hint="Hot prospects"
-        />
-
-        <StatTile
-          icon={BadgeCheck}
-          tone="emerald"
-          label="Converted"
-          value={stats.converted}
-          hint={`${performance.summary.conversion_rate}% of leads`}
-          to="/performance"
-        />
-
-        <StatTile
-          icon={Hourglass}
-          tone="rose"
-          label="Pending"
-          value={stats.pending}
-          hint="Open follow-up tasks"
-          to="/follow-ups"
-        />
-      </div>
-
-      {/* Lead queue and employee tasks */}
-      <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
-        <Panel
-          title="Call queue"
-          icon={Phone}
-          bodyClassName="p-0"
-          action={
-            <span className="text-xs text-[var(--color-ink-soft)]">
-              {queue.length} lead{queue.length === 1 ? '' : 's'}
-            </span>
-          }
-        >
-          <div className="flex flex-col gap-3 border-b border-[var(--color-line)] p-3 lg:flex-row lg:items-center lg:justify-between">
-            <Tabs
-              value={tab}
-              onChange={setTab}
-              tabs={QUEUE_TABS.map((item) => ({
-                value: item.value,
-                label: item.label,
-                count: data.leads.filter(item.test).length,
-              }))}
-            />
-
-            <label className="relative block lg:w-60">
-              <Search
-                size={14}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink-soft)]"
-              />
-
-              <input
-                className="input py-2 pl-8 text-sm"
-                placeholder="Search name, phone, code"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </label>
-          </div>
-
-          {queue.length === 0 ? (
-            <div className="p-4">
-              <EmptyState
-                title="Nothing in this queue"
-                subtitle="Try another tab or clear the search."
-              />
-            </div>
-          ) : (
-            <div className="table-wrap max-h-[560px]">
-              <table className="data">
-                <thead className="sticky top-0 z-10 bg-white">
-                  <tr>
-                    <th>Customer</th>
-                    <th>Phone</th>
-                    <th>Status</th>
-                    <th>Priority</th>
-                    <th>Last contact</th>
-                    <th>Next follow-up</th>
-                    <th className="text-right">Actions</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {queue.map((lead) => {
-                    const overdue =
-                      lead.next_follow_up_at &&
-                      isPast(lead.next_follow_up_at) &&
-                      !Number(lead.is_terminal)
-
-                    return (
-                      <tr
-                        key={lead.id}
-                        className="hover:bg-slate-50"
-                      >
-                        <td>
-                          <Link
-                            to={`/leads/${lead.id}`}
-                            className="font-semibold hover:text-[var(--color-brand)]"
-                          >
-                            {lead.full_name}
-                          </Link>
-
-                          <div className="text-xs text-[var(--color-ink-soft)]">
-                            {lead.lead_code} ·{' '}
-                            {lead.preferred_configuration || '—'} ·{' '}
-                            {lead.call_count} call
-                            {Number(lead.call_count) === 1 ? '' : 's'}
-                          </div>
-                        </td>
-
-                        <td className="font-mono text-xs">
-                          {lead.mobile}
-                        </td>
-
-                        <td>
-                          <StatusBadge status={lead.status_name} />
-                        </td>
-
-                        <td>
-                          <PriorityBadge priority={lead.priority} />
-                        </td>
-
-                        <td className="text-xs">
-                          {lead.last_contact_at ? (
-                            <span title={fmtDateTime(lead.last_contact_at)}>
-                              {fmtRelative(lead.last_contact_at)}
-                            </span>
-                          ) : (
-                            <span className="text-[var(--color-ink-soft)]">
-                              Never
-                            </span>
-                          )}
-                        </td>
-
-                        <td
-                          className={clsx(
-                            'text-xs',
-                            overdue &&
-                              'font-semibold text-[var(--color-danger)]',
-                          )}
-                        >
-                          {lead.next_follow_up_at ? (
-                            <span title={fmtDateTime(lead.next_follow_up_at)}>
-                              {fmtDateTime(lead.next_follow_up_at)}
-                              {overdue ? ' · overdue' : ''}
-                            </span>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-
-                        <td>
-                          <div className="flex justify-end gap-1.5">
-                            <a
-                              href={`tel:${lead.mobile}`}
-                              onClick={() => actions.openCall(lead)}
-                              className="btn btn-primary px-3 py-1.5 text-xs"
-                              title={`Call ${lead.mobile} and log the outcome`}
-                            >
-                              <Phone size={13} />
-                              Call
-                            </a>
-
-                            <button
-                              className="btn btn-secondary px-2 py-1.5"
-                              title="Log call notes"
-                              onClick={() => actions.openCall(lead)}
-                            >
-                              <StickyNote size={14} />
-                            </button>
-
-                            <button
-                              className="btn btn-secondary px-2 py-1.5"
-                              title="Schedule follow-up"
-                              onClick={() => actions.openFollowUp(lead)}
-                            >
-                              <CalendarClock size={14} />
-                            </button>
-
-                            <button
-                              className="btn btn-secondary px-2 py-1.5"
-                              title="Schedule site visit"
-                              onClick={() => actions.openSiteVisit(lead)}
-                            >
-                              <MapPin size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Panel>
-
-        {/* Follow-ups, site visits and attendance */}
-        <div className="grid content-start gap-5 lg:grid-cols-3 2xl:grid-cols-1">
-          <Panel
-            title="Today's follow-ups"
-            icon={CalendarClock}
-            action={
-              <Link
-                className="text-xs font-semibold text-[var(--color-brand)]"
-                to="/follow-ups"
-              >
-                View all
-              </Link>
-            }
-          >
-            {todaysTasks.length === 0 ? (
-              <p className="text-sm text-[var(--color-ink-soft)]">
-                You're all caught up for today.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {todaysTasks.slice(0, 6).map((task) => (
-                  <li
-                    key={task.id}
-                    className={clsx(
-                      'rounded-xl border px-3 py-2',
-                      task.status === 'overdue'
-                        ? 'border-red-200 bg-red-50/60'
-                        : 'border-[var(--color-line)] bg-white',
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold">
-                          {task.title}
-                        </div>
-
-                        <div className="text-xs text-[var(--color-ink-soft)]">
-                          {task.lead_name} · {fmtTime(task.due_at)} ·{' '}
-                          {task.task_type}
-                        </div>
-                      </div>
-
-                      <PriorityBadge priority={task.priority} />
-                    </div>
-
-                    <div className="mt-2 flex gap-2">
-                      <a
-                        className="btn btn-secondary px-2 py-1 text-xs"
-                        href={`tel:${task.mobile}`}
-                      >
-                        <Phone size={12} />
-                        Call
-                      </a>
-
-                      <button
-                        className="btn btn-secondary px-2 py-1 text-xs"
-                        disabled={actions.busy}
-                        onClick={() => completeTask(task.id)}
-                      >
-                        Mark done
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
-
-          <Panel
-            title="Upcoming site visits"
-            icon={MapPin}
-            action={
-              <Link
-                className="text-xs font-semibold text-[var(--color-brand)]"
-                to="/site-visits"
-              >
-                Manage
-              </Link>
-            }
-          >
-            {upcomingVisits.length === 0 ? (
-              <p className="text-sm text-[var(--color-ink-soft)]">
-                No visits scheduled.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {upcomingVisits.map((visit) => (
-                  <li
-                    key={visit.id}
-                    className="flex items-center gap-3 rounded-xl border border-[var(--color-line)] bg-white px-3 py-2"
-                  >
-                    <div className="grid size-11 shrink-0 place-items-center rounded-lg bg-[var(--color-brand-soft)] text-center leading-tight text-[var(--color-brand-deep)]">
-                      <div className="text-[10px] uppercase">
-                        {parseUtc(visit.scheduled_at).toLocaleDateString([], {
-                          month: 'short',
-                        })}
-                      </div>
-
-                      <div className="text-base font-bold">
-                        {parseUtc(visit.scheduled_at).getDate()}
-                      </div>
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold">
-                        {visit.lead_name}
-                      </div>
-
-                      <div className="truncate text-xs text-[var(--color-ink-soft)]">
-                        {visit.property_name || 'Property TBD'} ·{' '}
-                        {fmtTime(visit.scheduled_at)}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
-
-          <Panel
-            title="This month's attendance"
-            icon={CalendarDays}
-            action={
-              <Link
-                className="text-xs font-semibold text-[var(--color-brand)]"
-                to="/attendance"
-              >
-                Details
-              </Link>
-            }
-          >
-            <div className="grid grid-cols-3 gap-2 text-center">
-              {[
-                ['Present', attendance.summary.present, 'text-emerald-700'],
-                ['Absent', attendance.summary.absent, 'text-rose-700'],
-                ['Late', attendance.summary.late, 'text-amber-700'],
-              ].map(([label, value, tone]) => (
-                <div
-                  key={label}
-                  className="rounded-xl bg-white px-2 py-2"
-                >
-                  <div className={clsx('text-xl font-semibold', tone)}>
-                    {value}
-                  </div>
-
-                  <div className="text-[11px] uppercase tracking-wide text-[var(--color-ink-soft)]">
-                    {label}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-3 flex justify-between text-xs text-[var(--color-ink-soft)]">
-              <span>
-                Avg working day:{' '}
-                <strong className="text-[var(--color-ink)]">
-                  {fmtDuration(attendance.summary.avg_working_seconds)}
-                </strong>
-              </span>
-
-              <span>
-                Rate:{' '}
-                <strong className="text-[var(--color-ink)]">
-                  {attendance.summary.attendance_rate}%
-                </strong>
-              </span>
-            </div>
-          </Panel>
-        </div>
-      </div>
-
-      {/* Gradient activity chart and recent calls */}
-      <div className="grid gap-5 xl:grid-cols-2">
-        <div className="min-w-0">
-          <TrendAreaChart
-            title="My activity"
-            subtitle="Calls and connected calls over the last 14 days"
-            data={chart}
-            series={[
-              { key: 'calls', name: 'Calls', color: '#8b5cf6' },
-              { key: 'connected', name: 'Connected', color: '#06b6d4' },
-            ]}
-          />
-
-          <div className="mt-3 flex justify-end">
-            <Link
-              className="text-xs font-semibold text-[var(--color-brand)]"
-              to="/performance"
-            >
-              View full performance report →
-            </Link>
-          </div>
-        </div>
-
-        <Panel
-          title="Recent calls & notes"
-          icon={StickyNote}
-          action={
-            <Link
-              className="text-xs font-semibold text-[var(--color-brand)]"
-              to="/calls"
-            >
-              Call history
-            </Link>
-          }
-        >
-          {calls.length === 0 ? (
-            <p className="text-sm text-[var(--color-ink-soft)]">
-              No calls logged yet.
+            <p className="mt-2 max-w-lg text-sm leading-6 text-blue-100 sm:text-base">
+              Manage your workforce, explore employee profiles and keep your
+              real-estate team organised in one place.
             </p>
-          ) : (
-            <ul className="max-h-60 space-y-3 overflow-auto pr-1">
-              {calls.slice(0, 8).map((call) => (
-                <li key={call.id} className="flex gap-3">
-                  <span className="mt-1 grid size-7 shrink-0 place-items-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand)]">
-                    <Phone size={13} />
-                  </span>
+          </div>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="font-semibold">
-                        {call.lead_name}
-                      </span>
+          <button
+            onClick={loadEmployees}
+            disabled={loading}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/15 px-5 py-3 text-sm font-semibold text-white shadow-lg backdrop-blur transition hover:bg-white/25 disabled:opacity-60"
+          >
+            <RefreshCw size={17} className={loading ? 'animate-spin' : ''} />
+            Refresh employees
+          </button>
+        </div>
+      </section>
 
-                      <OutcomeBadge outcome={call.outcome} />
+      {/* Statistics */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="group relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-white to-blue-50 p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500">Total employees</p>
+              <p className="mt-3 text-3xl font-extrabold text-slate-900">
+                {employees.length}
+              </p>
+              <p className="mt-2 text-xs text-blue-700">Registered accounts</p>
+            </div>
+            <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-3 text-white shadow-lg shadow-blue-200">
+              <Users size={23} />
+            </div>
+          </div>
+          <div className="absolute -bottom-7 -right-5 size-24 rounded-full bg-blue-100/70 transition group-hover:scale-125" />
+        </div>
 
-                      <span className="text-xs text-[var(--color-ink-soft)]">
-                        {fmtDateTime(call.initiated_at)}
-                      </span>
-                    </div>
+        <div className="group relative overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50 p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500">Active accounts</p>
+              <p className="mt-3 text-3xl font-extrabold text-slate-900">
+                {activeCount}
+              </p>
+              <p className="mt-2 text-xs text-emerald-700">Available in the system</p>
+            </div>
+            <div className="rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-3 text-white shadow-lg shadow-emerald-200">
+              <UserCheck size={23} />
+            </div>
+          </div>
+          <div className="absolute -bottom-7 -right-5 size-24 rounded-full bg-emerald-100/70 transition group-hover:scale-125" />
+        </div>
 
-                    <p className="text-sm text-[var(--color-ink-soft)]">
-                      {call.notes || 'No notes'}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
+        <div className="group relative overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-br from-white to-violet-50 p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500">HOD / Team Leads</p>
+              <p className="mt-3 text-3xl font-extrabold text-slate-900">
+                {teamLeadCount}
+              </p>
+              <p className="mt-2 text-xs text-violet-700">Team leadership accounts</p>
+            </div>
+            <div className="rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 p-3 text-white shadow-lg shadow-violet-200">
+              <ShieldCheck size={23} />
+            </div>
+          </div>
+          <div className="absolute -bottom-7 -right-5 size-24 rounded-full bg-violet-100/70 transition group-hover:scale-125" />
+        </div>
+      </section>
 
-      {/* Lead pipeline and daily performance trend */}
-      <div className="grid gap-5 xl:grid-cols-2">
-        <PipelineDonut
-          data={pipeline.map((row) => ({
-            name: row.name,
-            value: Number(row.cnt || 0),
-          }))}
-        />
+      {/* Employee directory */}
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Employee directory</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Search and view your employee records.
+            </p>
+          </div>
 
-        <TrendAreaChart
-          title="Performance trend"
-          subtitle="Daily calls and conversions"
-          data={dailyPerformance.map((row) => ({
-            ...row,
-            label: parseUtc(row.date).toLocaleDateString([], {
-              day: '2-digit',
-              month: 'short',
-            }),
-          }))}
-          series={[
-            { key: 'calls', name: 'Calls', color: '#8b5cf6' },
-            {
-              key: 'conversions',
-              name: 'Conversions',
-              color: '#f59e0b',
-            },
-          ]}
-        />
-      </div>
+          <div className="relative w-full sm:max-w-sm">
+            <Search
+              size={18}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search name, ID, email, role..."
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+            />
+          </div>
+        </div>
 
-      {/* Preserve existing call/follow-up modal actions */}
-      {actions.element}
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50/80 px-5 py-3">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Employee records
+          </span>
+          <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">
+            {filteredEmployees.length} {filteredEmployees.length === 1 ? 'employee' : 'employees'}
+          </span>
+        </div>
+
+        {loading ? (
+          <div className="p-8">
+            <LoadingBlock label="Loading employee accounts..." />
+          </div>
+        ) : error ? (
+          <div className="space-y-3 p-6">
+            <ErrorBanner message={error} />
+            <button
+              onClick={loadEmployees}
+              className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            >
+              Try again
+            </button>
+          </div>
+        ) : filteredEmployees.length === 0 ? (
+          <div className="px-6 py-16 text-center">
+            <div className="mx-auto mb-4 grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-blue-100 to-violet-100 text-indigo-600">
+              <Users size={30} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800">
+              {employees.length ? 'No matching employees' : 'No employee records found'}
+            </h3>
+            <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+              {employees.length
+                ? 'Try another search term to find an employee.'
+                : 'No records were returned. Check that the employee-list API is connected to your database.'}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[850px] text-left text-sm">
+              <thead>
+                <tr className="bg-gradient-to-r from-slate-50 via-indigo-50/60 to-blue-50 text-xs uppercase tracking-wider text-slate-500">
+                  <th className="px-5 py-4 font-bold">Employee</th>
+                  <th className="px-5 py-4 font-bold">Employee ID</th>
+                  <th className="px-5 py-4 font-bold">Contact details</th>
+                  <th className="px-5 py-4 font-bold">Role</th>
+                  <th className="px-5 py-4 font-bold">Team / Department</th>
+                  <th className="px-5 py-4 font-bold">Status</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100">
+                {filteredEmployees.map((employee, index) => {
+                  const inactive = employee.is_active === false
+                  const role = (employee.role || 'employee').replace('_', ' ')
+
+                  return (
+                    <tr
+                      key={employee._id || employee.id || employee.employee_code || index}
+                      className="group transition hover:bg-indigo-50/50"
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${avatarColors[index % avatarColors.length]} text-sm font-extrabold text-white shadow-md`}>
+                            {getInitials(employee.full_name)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-800 transition group-hover:text-indigo-700">
+                              {employee.full_name || 'Unnamed employee'}
+                            </p>
+                            <p className="mt-0.5 text-xs text-slate-400">
+                              Employee profile
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <span className="rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1.5 font-mono text-xs font-semibold text-blue-700">
+                          {employee.employee_code || '—'}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-slate-600">
+                            <span className="grid size-7 place-items-center rounded-lg bg-emerald-50 text-emerald-600">
+                              <Phone size={13} />
+                            </span>
+                            <span>{employee.phone || employee.mobile || '—'}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <Mail size={14} className="shrink-0 text-violet-500" />
+                            <span>{employee.email || 'No email registered'}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold capitalize ${
+                          ['admin'].includes(employee.role)
+                            ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-100'
+                            : ['hod', 'team_lead'].includes(employee.role)
+                              ? 'bg-violet-50 text-violet-700 ring-1 ring-violet-100'
+                              : 'bg-sky-50 text-sky-700 ring-1 ring-sky-100'
+                        }`}>
+                          <BriefcaseBusiness size={13} />
+                          {role}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2 text-slate-600">
+                          <Building2 size={15} className="shrink-0 text-amber-500" />
+                          {employee.team_name || employee.department || employee.team_id || '—'}
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
+                          inactive
+                            ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-100'
+                            : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
+                        }`}>
+                          <span className={`size-1.5 rounded-full ${inactive ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+                          {inactive ? 'Inactive' : 'Active'}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-3 text-xs text-slate-400">
+          <UserRound size={14} />
+          Employee details are loaded from the connected API.
+        </div>
+      </section>
     </div>
   )
 }

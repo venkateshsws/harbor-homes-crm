@@ -8,13 +8,14 @@ export default function Login() {
   const { user, login, loading } = useAuth()
   const navigate = useNavigate()
 
-  const [identifier, setIdentifier] = useState('superadmin@yahoo-crm.local')
-  const [password, setPassword] = useState('Password123!')
+  // Start with empty fields instead of demo credentials.
+  const [identifier, setIdentifier] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  // Redirect an existing session to the correct dashboard.
+  // Redirect an existing authenticated session to the correct dashboard.
   if (!loading && user) {
     return (
       <Navigate
@@ -42,7 +43,8 @@ export default function Login() {
       }
     } catch (error) {
       setError(
-        error?.message || 'Unable to sign in. Please check your credentials.'
+        error?.message ||
+          'Unable to sign in. Please check your credentials.'
       )
     } finally {
       setBusy(false)
@@ -194,31 +196,12 @@ export default function Login() {
                 {!busy && <span aria-hidden="true">→</span>}
               </button>
             </form>
-
-            <div className="mt-6 rounded-xl border border-cyan-100 bg-gradient-to-r from-[#f0fbff] to-[#f6f2ff] p-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-[#17618e]">
-                Development demo access
-              </div>
-
-              <p className="mt-2 break-all text-sm text-slate-600">
-                Super Admin: superadmin@yahoo-crm.local
-              </p>
-
-              <p className="mt-1 text-sm text-slate-600">
-                Demo password: <span className="font-semibold">Password123!</span>
-              </p>
-
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                Demo access works only if your AuthContext is configured for
-                demo mode. Production login requires backend authentication.
-              </p>
-            </div>
           </div>
-
-          <p className="mt-6 text-center text-xs text-slate-400">
-            © {new Date().getFullYear()} Yahoo CRM · Real Estate Management
-          </p>
         </div>
+
+        <p className="absolute bottom-3 left-0 right-0 text-center text-xs text-slate-400">
+          © {new Date().getFullYear()} Yahoo CRM · Real Estate Management
+        </p>
       </section>
     </main>
   )

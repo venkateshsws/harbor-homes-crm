@@ -12,7 +12,7 @@ import { api, setCsrfToken } from '../api/client'
 
 const AuthContext = createContext(null)
 
-const DEMO_MODE = true
+const DEMO_MODE = false
 const SESSION_KEY = 'yahoo-crm-demo-user'
 const DEMO_PASSWORD = 'Password123!'
 
@@ -64,7 +64,7 @@ function getSavedUser() {
   }
 }
 
-function saveUser(user) {
+function saveDemoUser(user) {
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(user))
   setCsrfToken('local-demo')
 }
@@ -78,39 +78,44 @@ function isDemoUser(user) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(getSavedUser)
-  const [loading, setLoading] = useState(!DEMO_MODE)
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
-    if (DEMO_MODE) {
-      const savedUser = getSavedUser()
-
-      if (isDemoUser(savedUser)) {
-        setUser(savedUser)
-        setCsrfToken('local-demo')
-        setLoading(false)
-        return
-      }
-    }
+    setLoading(true)
 
     try {
+      if (DEMO_MODE) {
+        const savedUser = getSavedUser()
+
+        if (isDemoUser(savedUser)) {
+          setUser(savedUser)
+          setCsrfToken('local-demo')
+          return savedUser
+        }
+      }
+
+      // The backend session cookie is authoritative in real mode.
       const res = await api('/api/auth/me')
       const loggedInUser = res.data.user
+
+      if (!loggedInUser) {
+        throw new Error('No authenticated user returned by server.')
+      }
 
       setUser(loggedInUser)
 
       if (DEMO_MODE) {
-        sessionStorage.setItem(
-          SESSION_KEY,
-          JSON.stringify(loggedInUser),
-        )
+        saveDemoUser(loggedInUser)
       }
 
-      setCsrfToken(res.data.csrf_token || 'local-demo')
+      setCsrfToken(res.data.csrf_token || null)
+      return loggedInUser
     } catch {
       setUser(null)
       sessionStorage.removeItem(SESSION_KEY)
       setCsrfToken(null)
+      return null
     } finally {
       setLoading(false)
     }
@@ -122,12 +127,13 @@ export function AuthProvider({ children }) {
 
   const login = async (identifier, password) => {
     if (!identifier?.trim() || !password) {
-      throw new Error('Enter your email or employee ID and password.')
+      throw new Error(
+        'Enter your email or employee ID and password.',
+      )
     }
 
     const normalizedIdentifier = identifier.trim().toLowerCase()
 
-    // Local demo login for all four roles.
     if (DEMO_MODE) {
       const demoUser = demoUsers.find(
         (item) =>
@@ -141,12 +147,11 @@ export function AuthProvider({ children }) {
         }
 
         setUser(demoUser)
-        saveUser(demoUser)
+        saveDemoUser(demoUser)
         return demoUser
       }
     }
 
-    // Real backend login for accounts not in the demo list.
     const res = await api('/api/auth/login', {
       method: 'POST',
       body: {
@@ -162,8 +167,13 @@ export function AuthProvider({ children }) {
     }
 
     setUser(loggedInUser)
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(loggedInUser))
-    setCsrfToken(res.data.csrf_token || 'local-demo')
+    setCsrfToken(res.data.csrf_token || null)
+
+    if (DEMO_MODE) {
+      saveDemoUser(loggedInUser)
+    } else {
+      sessionStorage.removeItem(SESSION_KEY)
+    }
 
     return loggedInUser
   }
@@ -171,21 +181,27 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     const currentUser = user
 
-    setUser(null)
-    sessionStorage.removeItem(SESSION_KEY)
-    setCsrfToken(null)
-
+    // Demo users have no backend session.
     if (DEMO_MODE && isDemoUser(currentUser)) {
+      setUser(null)
+      sessionStorage.removeItem(SESSION_KEY)
+      setCsrfToken(null)
       return
     }
 
     try {
+      // Send the request while the CSRF token is still available.
       await api('/api/auth/logout', {
         method: 'POST',
         body: {},
       })
-    } catch {
-      // Clear local session even if API logout fails.
+    } catch (error) {
+      console.error('Logout request failed:', error)
+    } finally {
+      // Clear local authentication state regardless of request outcome.
+      setUser(null)
+      sessionStorage.removeItem(SESSION_KEY)
+      setCsrfToken(null)
     }
   }
 

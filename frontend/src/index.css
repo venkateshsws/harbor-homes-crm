@@ -376,8 +376,6 @@ body:has(.company-admin-layout) {
 
 
 
-
-
 /* Hide the Menu button on laptop and desktop screens */
 @media (min-width: 1024px) {
   .btn.btn-secondary.lg\:hidden {

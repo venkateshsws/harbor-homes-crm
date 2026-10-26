@@ -7,12 +7,14 @@
   "engines": {
     "node": ">=20"
   },
-  "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
-    "db:test": "node scripts/test-connection.js",
-    "user:create-admin": "node scripts/create-admin.js"
-  },
+
+"scripts": {
+  "start": "node src/server.js",
+  "dev": "node --watch src/server.js",
+  "db:test": "node scripts/test-connection.js",
+  "user:create-admin": "node scripts/create-admin.js",
+  "user:create-super-admin": "node scripts/create-super-admin.js"
+},
   "dependencies": {
     "dotenv": "^18.0.8",
     "express": "^5.3.0",
