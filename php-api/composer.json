@@ -1,0 +1,23 @@
+{
+  "name": "yahoo-crm/php-api",
+  "description": "Yahoo CRM API for PHP 8.2+. Uses the existing MongoDB data and the same /api routes as the Express backend.",
+  "type": "project",
+  "license": "proprietary",
+  "require": {
+    "php": ">=8.2",
+    "ext-hash": "*",
+    "ext-json": "*",
+    "ext-mbstring": "*",
+    "ext-mongodb": "*",
+    "ext-openssl": "*",
+    "mongodb/mongodb": "^1.21"
+  },
+  "autoload": {
+    "psr-4": {
+      "YahooCrm\\": "src/"
+    }
+  },
+  "config": {
+    "sort-packages": true
+  }
+}

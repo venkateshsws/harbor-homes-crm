@@ -1,0 +1,24 @@
+# One domain: React at / and this API at /api/.
+# Build the frontend first: npm --prefix frontend run build
+# Point MONGODB_URI at the existing database. Do not put the password in this file.
+
+server {
+    listen 80;
+    server_name example.com;
+    root /var/www/yahoo-crm/frontend/dist;
+    index index.html;
+
+    client_max_body_size 1m;
+
+    location /api/ {
+        include fastcgi_params;
+        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME /var/www/yahoo-crm/php-api/public/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_hide_header X-Powered-By;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

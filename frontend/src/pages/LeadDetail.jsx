@@ -65,7 +65,7 @@ export default function LeadDetail() {
     try {
       await api('/api/calls', {
         method: 'POST',
-        body: { lead_id: Number(id), outcome: callOutcome, notes: callNotes },
+        body: { lead_id: id, outcome: callOutcome, notes: callNotes },
       })
       setCallNotes('')
       await load()
@@ -79,7 +79,7 @@ export default function LeadDetail() {
       await api(`/api/leads/${id}/assign`, {
         method: 'POST',
         body: method === 'manual'
-          ? { method: 'manual', to_user_id: Number(assignUser), reason: 'Manual reassignment' }
+          ? { method: 'manual', employee_id: assignUser, to_user_id: assignUser, reason: 'Manual reassignment' }
           : { method, reason: `Auto ${method}` },
       })
       await load()
@@ -90,7 +90,7 @@ export default function LeadDetail() {
   const sendWa = async () => {
     setBusy(true)
     try {
-      const res = await api('/api/whatsapp/send', { method: 'POST', body: { lead_id: Number(id), template_id: 1 } })
+      const res = await api('/api/whatsapp/send', { method: 'POST', body: { lead_id: id, template_id: 1 } })
       alert(res.data.is_simulated ? 'Simulated WhatsApp message stored (provider not configured).' : `WhatsApp status: ${res.data.status}`)
       await load()
     } catch (e) { setError(e.message) }

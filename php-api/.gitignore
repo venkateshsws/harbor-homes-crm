@@ -1,0 +1,6 @@
+/vendor/
+/.env
+/storage/
+/tools/
+composer.phar
+*.log

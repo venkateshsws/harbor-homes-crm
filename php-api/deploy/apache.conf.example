@@ -1,0 +1,22 @@
+# Apache 2.4 example for one domain.
+# DocumentRoot is the React build. /api is handled by the PHP front controller.
+# Enable rewrite, headers, and proxy_fcgi or php_module for PHP 8.2+.
+
+<VirtualHost *:80>
+    ServerName example.com
+    DocumentRoot /var/www/yahoo-crm/frontend/dist
+
+    <Directory /var/www/yahoo-crm/frontend/dist>
+        Require all granted
+        FallbackResource /index.html
+    </Directory>
+
+    Alias /api /var/www/yahoo-crm/php-api/public
+    <Directory /var/www/yahoo-crm/php-api/public>
+        Require all granted
+        FallbackResource /api/index.php
+        <FilesMatch "\.php$">
+            SetHandler "proxy:unix:/run/php/php8.2-fpm.sock|fcgi://localhost"
+        </FilesMatch>
+    </Directory>
+</VirtualHost>
